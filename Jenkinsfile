@@ -1,19 +1,50 @@
 pipeline {
     agent any
+
+    environment {
+        // Docker Hub credentials ID from Jenkins
+        DOCKER_CREDENTIALS = 'dockerhub-cred'  
+        IMAGE_NAME = 'kunalpatidar/dashboard'
+        IMAGE_TAG = 'latest'
+    }
+
     stages {
-        stage('Checkout') {
-            steps { git 'https://github.com/k-patidar/aws-file-pipeline.git' }
-        }
-        stage('Build Docker Image') {
+        stage('Checkout Code') {
             steps {
-                sh 'docker build -t kundan/dashboard:latest ./dashboard'
-                sh 'docker push kundan/dashboard:latest'
+                // Checkout your Git repo
+                git branch: 'master', url: 'https://github.com/k-patidar/aws-file-pipeline.git'
             }
         }
-        stage('Deploy to Kubernetes') {
+
+        stage('Build Docker Image') {
             steps {
-                sh 'kubectl apply -f k8s/dashboard-deployment.yaml'
+                script {
+                    // Build the Docker image
+                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "./dashboard")
+                }
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                script {
+                    // Login and push Docker image using Jenkins credentials
+                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS) {
+                        def appImage = docker.image("${IMAGE_NAME}:${IMAGE_TAG}")
+                        appImage.push()
+                    }
+                }
             }
         }
     }
+
+    post {
+        success {
+            echo "Docker image successfully built and pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
+        }
+        failure {
+            echo "Build failed. Check the logs."
+        }
+    }
 }
+
