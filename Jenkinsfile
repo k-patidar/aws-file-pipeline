@@ -2,10 +2,10 @@ pipeline {
     agent any
 
     environment {
-        // Docker Hub credentials ID from Jenkins
-        DOCKER_CREDENTIALS = 'dockerhub-cred'  // Must match Jenkins credentials ID
-        IMAGE_NAME = 'kunalpatidar/dashboard'
-        IMAGE_TAG = 'latest'
+        IMAGE_NAME = "kunalpatidar/dashboard"
+        IMAGE_TAG  = "latest"
+        DOCKER_USERNAME = "kunalpatidar"
+        DOCKER_PASSWORD = credentials('dockerhub-cred') // Jenkins credential ID
     }
 
     stages {
@@ -17,32 +17,26 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    echo "Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
-                    def appImage = docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "./dashboard")
-                }
+                sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ./dashboard"
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                script {
-                    echo "Pushing Docker image to Docker Hub"
-                    docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS) {
-                        def appImage = docker.image("${IMAGE_NAME}:${IMAGE_TAG}")
-                        appImage.push()
-                    }
-                }
+                sh '''
+                echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+                docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                '''
             }
         }
     }
 
     post {
         success {
-            echo " Docker image successfully built and pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
+            echo "Docker image successfully built and pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
         }
         failure {
-            echo " Build failed. Check the logs."
+            echo "Build failed. Check the logs."
         }
     }
 }
