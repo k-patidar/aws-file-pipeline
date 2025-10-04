@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Docker Hub credentials ID from Jenkins
-        DOCKER_CREDENTIALS = 'dockerhub-cred'  
+        DOCKER_CREDENTIALS = 'dockerhub-cred'  // Must match Jenkins credentials ID
         IMAGE_NAME = 'kunalpatidar/dashboard'
         IMAGE_TAG = 'latest'
     }
@@ -11,7 +11,6 @@ pipeline {
     stages {
         stage('Checkout Code') {
             steps {
-                // Checkout your Git repo
                 git branch: 'master', url: 'https://github.com/k-patidar/aws-file-pipeline.git'
             }
         }
@@ -19,8 +18,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image
-                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "./dashboard")
+                    echo "Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
+                    def appImage = docker.build("${IMAGE_NAME}:${IMAGE_TAG}", "./dashboard")
                 }
             }
         }
@@ -28,7 +27,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 script {
-                    // Login and push Docker image using Jenkins credentials
+                    echo "Pushing Docker image to Docker Hub"
                     docker.withRegistry('https://index.docker.io/v1/', DOCKER_CREDENTIALS) {
                         def appImage = docker.image("${IMAGE_NAME}:${IMAGE_TAG}")
                         appImage.push()
@@ -40,10 +39,10 @@ pipeline {
 
     post {
         success {
-            echo "Docker image successfully built and pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
+            echo " Docker image successfully built and pushed: ${IMAGE_NAME}:${IMAGE_TAG}"
         }
         failure {
-            echo "Build failed. Check the logs."
+            echo " Build failed. Check the logs."
         }
     }
 }
